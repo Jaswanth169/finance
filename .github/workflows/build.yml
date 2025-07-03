@@ -43,14 +43,18 @@ jobs:
             main()
         EOF
 
-    - name: Create pyproject.toml
+    - name: Create pyproject.toml with license
       run: |
         cat > pyproject.toml << 'EOF'
+        [build-system]
+        requires = ["briefcase"]
+        
         [tool.briefcase]
         project_name = "Finance Tracker"
         bundle = "org.example"
         version = "0.0.1"
         url = "https://github.com/example/finance-tracker"
+        license = "MIT"
         author = "Finance App Developer"
         author_email = "developer@example.com"
 
@@ -58,6 +62,7 @@ jobs:
         formal_name = "Finance Tracker"
         description = "Personal Finance Tracking Application"
         sources = ["src/financetracker"]
+        requires = []
         
         [tool.briefcase.app.financetracker.android]
         requires = []
@@ -66,6 +71,32 @@ jobs:
             "androidx.constraintlayout:constraintlayout:2.1.4",
             "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0",
         ]
+        EOF
+
+    - name: Create LICENSE file
+      run: |
+        cat > LICENSE << 'EOF'
+        MIT License
+
+        Copyright (c) 2024 Finance Tracker
+
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:
+
+        The above copyright notice and this permission notice shall be included in all
+        copies or substantial portions of the Software.
+
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.
         EOF
 
     - name: Install Briefcase
