@@ -26,16 +26,10 @@ jobs:
 
     - name: Create proper Briefcase project structure
       run: |
-        # Create the expected directory structure
         mkdir -p src/financetracker
-        
-        # Move main.py to the correct location and rename it
         cp main.py src/financetracker/app.py
-        
-        # Create __init__.py
         echo '__version__ = "0.0.1"' > src/financetracker/__init__.py
         
-        # Create __main__.py
         cat > src/financetracker/__main__.py << 'EOF'
         from financetracker.app import main
 
@@ -73,32 +67,6 @@ jobs:
         ]
         EOF
 
-    - name: Create LICENSE file
-      run: |
-        cat > LICENSE << 'EOF'
-        MIT License
-
-        Copyright (c) 2024 Finance Tracker
-
-        Permission is hereby granted, free of charge, to any person obtaining a copy
-        of this software and associated documentation files (the "Software"), to deal
-        in the Software without restriction, including without limitation the rights
-        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-        copies of the Software, and to permit persons to whom the Software is
-        furnished to do so, subject to the following conditions:
-
-        The above copyright notice and this permission notice shall be included in all
-        copies or substantial portions of the Software.
-
-        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-        SOFTWARE.
-        EOF
-
     - name: Install Briefcase
       run: |
         python -m pip install --upgrade pip
@@ -110,9 +78,62 @@ jobs:
         briefcase build android
         briefcase package android
 
-    - name: Upload APK
+    - name: Find and copy APK files
+      run: |
+        echo "🔍 Searching for all APK files..."
+        find . -name "*.apk" -type f -exec echo "Found: {}" \;
+        
+        # Create dist directory
+        mkdir -p dist
+        
+        # Copy all APK files to dist
+        find . -name "*.apk" -type f -exec cp {} dist/ \;
+        
+        # Also copy AAB files if they exist
+        find . -name "*.aab" -type f -exec cp {} dist/ \;
+        
+        echo "📱 Files in dist directory:"
+        ls -la dist/
+        
+        # Rename files for easier identification
+        cd dist
+        for file in *.apk; do
+            if [ -f "$file" ]; then
+                mv "$file" "FinanceTracker-${file}"
+            fi
+        done
+        
+        for file in *.aab; do
+            if [ -f "$file" ]; then
+                mv "$file" "FinanceTracker-${file}"
+            fi
+        done
+        
+        echo "📱 Renamed files:"
+        ls -la
+
+    - name: Upload APK and AAB files
       uses: actions/upload-artifact@v4
       with:
-        name: finance-tracker-apk
-        path: dist/*.apk
+        name: finance-tracker-app
+        path: dist/*
         retention-days: 30
+
+    - name: Build summary
+      run: |
+        echo "## 🎉 Build Successful!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Your Finance Tracker APK has been built successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📱 Download Instructions:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Go to the **Actions** tab" >> $GITHUB_STEP_SUMMARY
+        echo "2. Click on this build" >> $GITHUB_STEP_SUMMARY
+        echo "3. Scroll down to **Artifacts**" >> $GITHUB_STEP_SUMMARY
+        echo "4. Click **finance-tracker-app** to download" >> $GITHUB_STEP_SUMMARY
+        echo "5. Unzip and install the APK on your Android phone" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔧 Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Install APK on your Android phone" >> $GITHUB_STEP_SUMMARY
+        echo "2. Run backend server on your laptop" >> $GITHUB_STEP_SUMMARY
+        echo "3. Connect app to your laptop's IP address" >> $GITHUB_STEP_SUMMARY
+        echo "4. Start tracking your expenses!" >> $GITHUB_STEP_SUMMARY
