@@ -24,9 +24,6 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-
     - name: Install system dependencies
       run: |
         sudo apt-get update
@@ -34,7 +31,9 @@ jobs:
           build-essential \
           git \
           unzip \
-          zip
+          zip \
+          libffi-dev \
+          libssl-dev
 
     - name: Install Python dependencies
       run: |
@@ -42,9 +41,23 @@ jobs:
         pip install buildozer==1.5.0
         pip install cython==0.29.36
 
-    - name: Build APK with Buildozer
+    - name: Cache Buildozer global directory
+      uses: actions/cache@v4
+      with:
+        path: .buildozer_global
+        key: buildozer-global-${{ hashFiles('buildozer.spec') }}
+
+    - name: Cache Buildozer directory  
+      uses: actions/cache@v4
+      with:
+        path: .buildozer
+        key: ${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+
+    - name: Build APK with auto-accept licenses
       run: |
-        buildozer android debug
+        export BUILDOZER_GLOBAL_DIR=${{ github.workspace }}/.buildozer_global
+        echo "Building APK with auto license acceptance..."
+        yes | buildozer android debug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
