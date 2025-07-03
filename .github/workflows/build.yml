@@ -27,17 +27,261 @@ jobs:
     - name: Create proper Briefcase project structure
       run: |
         mkdir -p src/financetracker
-        cp main.py src/financetracker/app.py
+        
+        # Fix the main.py to work with Briefcase
+        cat > src/financetracker/app.py << 'EOF'
+        import toga
+        from toga.style import Pack
+        from toga.style.pack import COLUMN, ROW
+        import requests
+        import json
+        import threading
+
+        class FinanceApp(toga.App):
+            def startup(self):
+                """Initialize the application."""
+                self.server_ip = "192.168.1.100"  # Default IP
+                self.user_id = None
+                
+                # Create main window
+                self.main_window = toga.MainWindow(title=self.formal_name)
+                
+                # Create main container
+                main_box = toga.Box(style=Pack(direction=COLUMN, padding=10))
+                
+                # Title
+                title_label = toga.Label(
+                    "💰 Finance Tracker",
+                    style=Pack(padding=(0, 0, 20, 0), font_size=20, text_align="center")
+                )
+                main_box.add(title_label)
+                
+                # Server IP input
+                ip_box = toga.Box(style=Pack(direction=ROW, padding=5))
+                ip_label = toga.Label("Laptop IP:", style=Pack(width=100))
+                self.ip_input = toga.TextInput(
+                    value=self.server_ip,
+                    style=Pack(flex=1)
+                )
+                ip_box.add(ip_label)
+                ip_box.add(self.ip_input)
+                main_box.add(ip_box)
+                
+                # Test connection button
+                test_btn = toga.Button(
+                    "🔧 Test Connection",
+                    on_press=self.test_connection,
+                    style=Pack(padding=5)
+                )
+                main_box.add(test_btn)
+                
+                # User creation section
+                user_label = toga.Label(
+                    "👤 Create Profile:",
+                    style=Pack(padding=(20, 0, 10, 0))
+                )
+                main_box.add(user_label)
+                
+                # Name input
+                name_box = toga.Box(style=Pack(direction=ROW, padding=5))
+                name_label = toga.Label("Name:", style=Pack(width=100))
+                self.name_input = toga.TextInput(
+                    placeholder="Your Name",
+                    style=Pack(flex=1)
+                )
+                name_box.add(name_label)
+                name_box.add(self.name_input)
+                main_box.add(name_box)
+                
+                # Income input
+                income_box = toga.Box(style=Pack(direction=ROW, padding=5))
+                income_label = toga.Label("Income ₹:", style=Pack(width=100))
+                self.income_input = toga.TextInput(
+                    placeholder="Monthly Income",
+                    style=Pack(flex=1)
+                )
+                income_box.add(income_label)
+                income_box.add(self.income_input)
+                main_box.add(income_box)
+                
+                # Create user button
+                create_btn = toga.Button(
+                    "✅ Create User",
+                    on_press=self.create_user,
+                    style=Pack(padding=5)
+                )
+                main_box.add(create_btn)
+                
+                # Status label
+                self.status_label = toga.Label(
+                    "Enter laptop IP and test connection",
+                    style=Pack(padding=(20, 0, 10, 0))
+                )
+                main_box.add(self.status_label)
+                
+                # Expense input
+                expense_label = toga.Label(
+                    "💸 Add Expense:",
+                    style=Pack(padding=(20, 0, 10, 0))
+                )
+                main_box.add(expense_label)
+                
+                self.expense_input = toga.MultilineTextInput(
+                    placeholder="Describe your expense...\ne.g., 'Bought coffee at Starbucks for ₹250 yesterday'",
+                    style=Pack(height=80, padding=5)
+                )
+                main_box.add(self.expense_input)
+                
+                # Add expense button
+                add_btn = toga.Button(
+                    "➕ Add Expense",
+                    on_press=self.add_expense,
+                    style=Pack(padding=5)
+                )
+                main_box.add(add_btn)
+                
+                # Health score display
+                self.score_label = toga.Label(
+                    "Health Score: Not calculated",
+                    style=Pack(padding=(20, 0, 10, 0), font_size=16)
+                )
+                main_box.add(self.score_label)
+                
+                # Set main window content
+                self.main_window.content = main_box
+                self.main_window.show()
+
+            def test_connection(self, widget):
+                """Test connection to backend server"""
+                self.server_ip = self.ip_input.value
+                self.status_label.text = "Testing connection..."
+                
+                # Test in background thread
+                threading.Thread(target=self._test_connection_thread).start()
+
+            def _test_connection_thread(self):
+                """Test connection in background"""
+                try:
+                    url = f"http://{self.server_ip}:5000/api/test"
+                    response = requests.get(url, timeout=5)
+                    
+                    if response.status_code == 200:
+                        self.status_label.text = f"✅ Connected to {self.server_ip}"
+                    else:
+                        self.status_label.text = f"❌ Connection failed: {response.status_code}"
+                except Exception as e:
+                    self.status_label.text = f"❌ Cannot connect: {str(e)}"
+
+            def create_user(self, widget):
+                """Create user via API"""
+                name = self.name_input.value
+                income_text = self.income_input.value
+                
+                if not name or not income_text:
+                    self.status_label.text = "❌ Please enter name and income"
+                    return
+                
+                try:
+                    income = int(income_text)
+                except ValueError:
+                    self.status_label.text = "❌ Please enter valid income"
+                    return
+                
+                self.status_label.text = "Creating user..."
+                threading.Thread(target=self._create_user_thread, args=(name, income)).start()
+
+            def _create_user_thread(self, name, income):
+                """Create user in background"""
+                try:
+                    url = f"http://{self.server_ip}:5000/api/user"
+                    data = {"name": name, "income": income}
+                    response = requests.post(url, json=data, timeout=10)
+                    result = response.json()
+                    
+                    if result.get('success'):
+                        self.user_id = result['user_id']
+                        self.status_label.text = f"✅ User created! ID: {self.user_id}"
+                        self.name_input.value = ""
+                        self.income_input.value = ""
+                    else:
+                        self.status_label.text = f"❌ Failed: {result.get('error', 'Unknown error')}"
+                        
+                except Exception as e:
+                    self.status_label.text = f"❌ Error: {str(e)}"
+
+            def add_expense(self, widget):
+                """Add expense via API"""
+                text = self.expense_input.value
+                
+                if not text:
+                    self.status_label.text = "❌ Please describe your expense"
+                    return
+                
+                if not self.user_id:
+                    self.status_label.text = "❌ Please create user first"
+                    return
+                
+                self.status_label.text = "Adding expense..."
+                threading.Thread(target=self._add_expense_thread, args=(text,)).start()
+
+            def _add_expense_thread(self, text):
+                """Add expense in background"""
+                try:
+                    url = f"http://{self.server_ip}:5000/api/expense"
+                    data = {"user_id": self.user_id, "text": text}
+                    response = requests.post(url, json=data, timeout=10)
+                    result = response.json()
+                    
+                    if result.get('success'):
+                        self.expense_input.value = ""
+                        parsed = result.get('parsed', {})
+                        self.status_label.text = f"✅ Added: ₹{parsed.get('amount', 0)} - {parsed.get('category', 'Unknown')}"
+                        
+                        # Update health score
+                        self._get_health_score()
+                    else:
+                        self.status_label.text = f"❌ Failed: {result.get('error', 'Unknown error')}"
+                        
+                except Exception as e:
+                    self.status_label.text = f"❌ Error: {str(e)}"
+
+            def _get_health_score(self):
+                """Get health score in background"""
+                try:
+                    url = f"http://{self.server_ip}:5000/api/dashboard/{self.user_id}"
+                    response = requests.get(url, timeout=10)
+                    result = response.json()
+                    
+                    if result.get('success'):
+                        health = result.get('health_score', {})
+                        score = health.get('score', 0)
+                        grade = health.get('grade', 'Unknown')
+                        ratio = health.get('spending_ratio', 0)
+                        
+                        self.score_label.text = f"💳 Health Score: {score} ({grade}) - {ratio}% spent"
+                    
+                except Exception as e:
+                    print(f"Health score error: {e}")
+
+        def main():
+            return FinanceApp()
+
+        if __name__ == '__main__':
+            app = main()
+            app.main_loop()
+        EOF
+        
         echo '__version__ = "0.0.1"' > src/financetracker/__init__.py
         
         cat > src/financetracker/__main__.py << 'EOF'
         from financetracker.app import main
 
         if __name__ == '__main__':
-            main()
+            app = main()
+            app.main_loop()
         EOF
 
-    - name: Create pyproject.toml with license
+    - name: Create pyproject.toml with Toga
       run: |
         cat > pyproject.toml << 'EOF'
         [build-system]
@@ -56,10 +300,10 @@ jobs:
         formal_name = "Finance Tracker"
         description = "Personal Finance Tracking Application"
         sources = ["src/financetracker"]
-        requires = []
+        requires = ["toga>=0.4.0", "requests"]
         
         [tool.briefcase.app.financetracker.android]
-        requires = []
+        requires = ["toga-android>=0.4.0", "requests"]
         build_gradle_dependencies = [
             "androidx.appcompat:appcompat:1.6.1",
             "androidx.constraintlayout:constraintlayout:2.1.4",
@@ -83,27 +327,15 @@ jobs:
         echo "🔍 Searching for all APK files..."
         find . -name "*.apk" -type f -exec echo "Found: {}" \;
         
-        # Create dist directory
         mkdir -p dist
-        
-        # Copy all APK files to dist
         find . -name "*.apk" -type f -exec cp {} dist/ \;
-        
-        # Also copy AAB files if they exist
         find . -name "*.aab" -type f -exec cp {} dist/ \;
         
         echo "📱 Files in dist directory:"
         ls -la dist/
         
-        # Rename files for easier identification
         cd dist
         for file in *.apk; do
-            if [ -f "$file" ]; then
-                mv "$file" "FinanceTracker-${file}"
-            fi
-        done
-        
-        for file in *.aab; do
             if [ -f "$file" ]; then
                 mv "$file" "FinanceTracker-${file}"
             fi
@@ -112,28 +344,9 @@ jobs:
         echo "📱 Renamed files:"
         ls -la
 
-    - name: Upload APK and AAB files
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: finance-tracker-app
         path: dist/*
         retention-days: 30
-
-    - name: Build summary
-      run: |
-        echo "## 🎉 Build Successful!" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Your Finance Tracker APK has been built successfully!" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📱 Download Instructions:" >> $GITHUB_STEP_SUMMARY
-        echo "1. Go to the **Actions** tab" >> $GITHUB_STEP_SUMMARY
-        echo "2. Click on this build" >> $GITHUB_STEP_SUMMARY
-        echo "3. Scroll down to **Artifacts**" >> $GITHUB_STEP_SUMMARY
-        echo "4. Click **finance-tracker-app** to download" >> $GITHUB_STEP_SUMMARY
-        echo "5. Unzip and install the APK on your Android phone" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 🔧 Next Steps:" >> $GITHUB_STEP_SUMMARY
-        echo "1. Install APK on your Android phone" >> $GITHUB_STEP_SUMMARY
-        echo "2. Run backend server on your laptop" >> $GITHUB_STEP_SUMMARY
-        echo "3. Connect app to your laptop's IP address" >> $GITHUB_STEP_SUMMARY
-        echo "4. Start tracking your expenses!" >> $GITHUB_STEP_SUMMARY
