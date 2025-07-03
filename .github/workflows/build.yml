@@ -24,35 +24,48 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    - name: Create pyproject.toml
+      run: |
+        cat > pyproject.toml << EOF
+        [tool.briefcase]
+        project_name = "Finance Tracker"
+        bundle = "org.example"
+        version = "0.0.1"
+        url = "https://github.com/example/finance-tracker"
+        license = "MIT"
+        author = "Finance App Developer"
+        author_email = "developer@example.com"
+
+        [tool.briefcase.app.financetracker]
+        formal_name = "Finance Tracker"
+        description = "Personal Finance Tracking Application"
+        long_description = "A mobile app for tracking personal finances with AI-powered expense categorization"
+        sources = ["financetracker"]
+        test_sources = ["tests"]
+
+        [tool.briefcase.app.financetracker.android]
+        requires = [
+            "toga-android~=0.4.0",
+        ]
+        EOF
+
+    - name: Create app structure
+      run: |
+        mkdir -p src/financetracker
+        cp main.py src/financetracker/app.py
+        
+        cat > src/financetracker/__init__.py << EOF
+        __version__ = "0.0.1"
+        EOF
+
     - name: Install Briefcase
       run: |
         python -m pip install --upgrade pip
         pip install briefcase
 
-    - name: Create Briefcase project
+    - name: Build Android
       run: |
-        briefcase new
-      env:
-        BRIEFCASE_NEW_PROJECT_NAME: Finance Tracker
-        BRIEFCASE_NEW_FORMAL_NAME: Finance Tracker
-        BRIEFCASE_NEW_APP_NAME: financetracker
-        BRIEFCASE_NEW_MODULE_NAME: financetracker
-        BRIEFCASE_NEW_BUNDLE_IDENTIFIER: org.example.financetracker
-        BRIEFCASE_NEW_PROJECT_SLUG: finance-tracker
-        BRIEFCASE_NEW_DESCRIPTION: Personal Finance Tracking App
-        BRIEFCASE_NEW_AUTHOR: Your Name
-        BRIEFCASE_NEW_AUTHOR_EMAIL: your.email@example.com
-        BRIEFCASE_NEW_URL: https://github.com/yourname/finance-tracker
-        BRIEFCASE_NEW_LICENSE: MIT
-        BRIEFCASE_NEW_GUI_FRAMEWORK: Toga
-
-    - name: Copy our app
-      run: |
-        cp main.py finance-tracker/src/financetracker/app.py
-
-    - name: Build Android APK
-      run: |
-        cd finance-tracker
+        briefcase create android
         briefcase build android
         briefcase package android
 
@@ -60,4 +73,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: finance-tracker-apk
-        path: finance-tracker/dist/*.apk
+        path: dist/*.apk
