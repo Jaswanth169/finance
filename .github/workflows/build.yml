@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout
+    - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Setup Python
@@ -24,38 +24,48 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    - name: Create proper Briefcase project structure
+      run: |
+        # Create the expected directory structure
+        mkdir -p src/financetracker
+        
+        # Move main.py to the correct location and rename it
+        cp main.py src/financetracker/app.py
+        
+        # Create __init__.py
+        echo '__version__ = "0.0.1"' > src/financetracker/__init__.py
+        
+        # Create __main__.py
+        cat > src/financetracker/__main__.py << 'EOF'
+        from financetracker.app import main
+
+        if __name__ == '__main__':
+            main()
+        EOF
+
     - name: Create pyproject.toml
       run: |
-        cat > pyproject.toml << EOF
+        cat > pyproject.toml << 'EOF'
         [tool.briefcase]
         project_name = "Finance Tracker"
         bundle = "org.example"
         version = "0.0.1"
         url = "https://github.com/example/finance-tracker"
-        license = "MIT"
         author = "Finance App Developer"
         author_email = "developer@example.com"
 
         [tool.briefcase.app.financetracker]
         formal_name = "Finance Tracker"
         description = "Personal Finance Tracking Application"
-        long_description = "A mobile app for tracking personal finances with AI-powered expense categorization"
-        sources = ["financetracker"]
-        test_sources = ["tests"]
-
-        [tool.briefcase.app.financetracker.android]
-        requires = [
-            "toga-android~=0.4.0",
-        ]
-        EOF
-
-    - name: Create app structure
-      run: |
-        mkdir -p src/financetracker
-        cp main.py src/financetracker/app.py
+        sources = ["src/financetracker"]
         
-        cat > src/financetracker/__init__.py << EOF
-        __version__ = "0.0.1"
+        [tool.briefcase.app.financetracker.android]
+        requires = []
+        build_gradle_dependencies = [
+            "androidx.appcompat:appcompat:1.6.1",
+            "androidx.constraintlayout:constraintlayout:2.1.4",
+            "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0",
+        ]
         EOF
 
     - name: Install Briefcase
@@ -63,7 +73,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install briefcase
 
-    - name: Build Android
+    - name: Build Android APK
       run: |
         briefcase create android
         briefcase build android
@@ -74,3 +84,4 @@ jobs:
       with:
         name: finance-tracker-apk
         path: dist/*.apk
+        retention-days: 30
