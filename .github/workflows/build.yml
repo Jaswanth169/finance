@@ -1,4 +1,4 @@
-name: Build APK
+name: Build Android APK
 
 on:
   push:
@@ -7,61 +7,57 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Setup Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.8'
+        python-version: '3.11'
 
-    - name: Install Java 8
-      uses: actions/setup-java@v3
+    - name: Setup Java
+      uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '8'
+        java-version: '17'
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v2
-
-    - name: Install dependencies
+    - name: Install Briefcase
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          ccache \
-          git \
-          libncurses5:i386 \
-          libstdc++6:i386 \
-          libgtk2.0-0:i386 \
-          libpangox-1.0-0:i386 \
-          libpangoxft-1.0-0:i386 \
-          libidn11:i386 \
-          python2.7 \
-          python2.7-dev \
-          openjdk-8-jdk \
-          unzip \
-          zlib1g-dev \
-          zlib1g:i386
+        python -m pip install --upgrade pip
+        pip install briefcase
 
-    - name: Install buildozer
+    - name: Create Briefcase project
       run: |
-        pip install --upgrade pip
-        pip install buildozer==1.4.0
-        pip install cython==0.29.21
-
-    - name: Build APK
-      run: |
-        buildozer android debug
+        briefcase new
       env:
-        ANDROIDAPI: "28"
-        ANDROIDMINAPI: "21"
+        BRIEFCASE_NEW_PROJECT_NAME: Finance Tracker
+        BRIEFCASE_NEW_FORMAL_NAME: Finance Tracker
+        BRIEFCASE_NEW_APP_NAME: financetracker
+        BRIEFCASE_NEW_MODULE_NAME: financetracker
+        BRIEFCASE_NEW_BUNDLE_IDENTIFIER: org.example.financetracker
+        BRIEFCASE_NEW_PROJECT_SLUG: finance-tracker
+        BRIEFCASE_NEW_DESCRIPTION: Personal Finance Tracking App
+        BRIEFCASE_NEW_AUTHOR: Your Name
+        BRIEFCASE_NEW_AUTHOR_EMAIL: your.email@example.com
+        BRIEFCASE_NEW_URL: https://github.com/yourname/finance-tracker
+        BRIEFCASE_NEW_LICENSE: MIT
+        BRIEFCASE_NEW_GUI_FRAMEWORK: Toga
+
+    - name: Copy our app
+      run: |
+        cp main.py finance-tracker/src/financetracker/app.py
+
+    - name: Build Android APK
+      run: |
+        cd finance-tracker
+        briefcase build android
+        briefcase package android
 
     - name: Upload APK
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: apk
-        path: bin/*.apk
+        name: finance-tracker-apk
+        path: finance-tracker/dist/*.apk
